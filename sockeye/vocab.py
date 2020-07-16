@@ -172,14 +172,25 @@ def save_source_vocabs(source_vocabs: List[Vocab], folder: str):
         vocab_to_json(vocab, os.path.join(folder, C.VOCAB_SRC_NAME % i))
 
 
-def save_target_vocab(target_vocab: Vocab, folder: str):
+# def save_target_vocab(target_vocab: Vocab, folder: str):
+#     """
+#     Saves target vocabulary to folder.
+
+#     :param target_vocab: Target vocabulary.
+#     :param folder: Destination folder.
+#     """
+#     vocab_to_json(target_vocab, os.path.join(folder, C.VOCAB_TRG_NAME % 0))
+
+# Updating save_target_vocab to save_target_vocabs to save vocab of target with terget factors
+def save_target_vocabs(target_vocabs: List[Vocab], folder: str):
     """
-    Saves target vocabulary to folder.
+    Saves target vocabulary to folder. added with optional factor vocabularies to folder.
 
     :param target_vocab: Target vocabulary.
     :param folder: Destination folder.
     """
-    vocab_to_json(target_vocab, os.path.join(folder, C.VOCAB_TRG_NAME % 0))
+    for i, vocab in enumerate(target_vocabs):
+        vocab_to_json(vocab, os.path.join(folder, C.VOCAB_TRG_NAME % i))
 
 
 def _get_sorted_source_vocab_fnames(folder) -> List[str]:
@@ -220,12 +231,13 @@ def load_or_create_vocab(data: str, vocab_path: Optional[str], num_words: int, w
     else:
         return vocab_from_json(vocab_path)
 
-
+# UPDATE for function call for load_or_create_vocabs to accept multople target_paths (target factors)
 def load_or_create_vocabs(source_paths: List[str],
-                          target_path: str,
+                          target_paths: List[str],
                           source_vocab_paths: List[Optional[str]],
                           factor_vocab_same_as_source: List[bool],
-                          target_vocab_path: Optional[str],
+                          target_vocab_paths: List[Optional[str]],
+                          factor_vocab_same_as_target: List[bool],
                           shared_vocab: bool,
                           num_words_source: Optional[int], word_min_count_source: int,
                           num_words_target: Optional[int], word_min_count_target: int,
@@ -249,6 +261,10 @@ def load_or_create_vocabs(source_paths: List[str],
     """
     source_path, *source_factor_paths = source_paths
     source_vocab_path, *source_factor_vocab_paths = source_vocab_paths
+
+    # UPDATE: Get target factor paths
+    target_path, *target_factor_paths = target_paths
+    target_vocab_path, *target_factor_vocab_paths = target_vocab_paths
 
     logger.info("=============================")
     logger.info("Loading/creating vocabularies")
@@ -287,6 +303,7 @@ def load_or_create_vocabs(source_paths: List[str],
                                             pad_to_multiple_of=pad_to_multiple_of)
 
     vocab_source_factors = []  # type: List[Vocab]
+    vocab_target_factors = [] # type: List[Vocab]
     if source_factor_paths:
         logger.info("(2) Additional source factor vocabularies")
         if len(factor_vocab_same_as_source) > 1:
@@ -299,6 +316,19 @@ def load_or_create_vocabs(source_paths: List[str],
         else:
             factor_vocab_same_as_source = [False] * len(source_factor_paths)
 
+    # UPDATE for target_factor_paths
+    if target_factor_paths:
+        logger.info("(2) Additional target factor vocabularies")
+        if len(factor_vocab_same_as_target) > 1:
+            utils.check_condition(len(factor_vocab_same_as_target) == len(target_factor_paths),
+                                  "The number of flags for sharing the vocabulary of "
+                                  "target factors does not match the number of target "
+                                  "factors.")
+        elif len(factor_vocab_same_as_target) == 1:
+            factor_vocab_same_as_target = factor_vocab_same_as_target * len(target_factor_paths)
+        else:
+            factor_vocab_same_as_target = [False] * len(target_factor_paths)
+
     for factor_path, factor_vocab_path, share_source_vocab in zip(source_factor_paths,
                                                                   source_factor_vocab_paths,
                                                                   factor_vocab_same_as_source):
@@ -308,8 +338,19 @@ def load_or_create_vocabs(source_paths: List[str],
                                                              pad_to_multiple_of=pad_to_multiple_of))
         else:
             vocab_source_factors.append(vocab_source)
+    
+    # UPDATE: get and return target vocab + target factor vocab
+    for factor_path, factor_vocab_path, share_source_vocab in zip(target_factor_paths,
+                                                                  target_factor_vocab_paths,
+                                                                  factor_vocab_same_as_target):
+        if not share_source_vocab:
+            vocab_target_factors.append(load_or_create_vocab(factor_path, factor_vocab_path,
+                                                             num_words_source, word_min_count_source,
+                                                             pad_to_multiple_of=pad_to_multiple_of))
+        else:
+            vocab_target_factors.append(vocab_target)
 
-    return [vocab_source] + vocab_source_factors, vocab_target
+    return [vocab_source] + vocab_source_factors, [vocab_target] + vocab_target_factors
 
 
 def reverse_vocab(vocab: Vocab) -> InverseVocab:

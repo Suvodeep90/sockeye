@@ -385,12 +385,27 @@ def add_training_data_args(params, required=False):
                         type=regular_file(),
                         default=[],
                         help='File(s) containing additional token-parallel source side factors. Default: %(default)s.')
+    # UPDATE: adding target factor argument
+    params.add_argument('--target-factors', '-tf',
+                        required=False,
+                        nargs='+',
+                        type=regular_file(),
+                        default=[],
+                        help='File(s) containing additional token-parallel target side factors. Default: %(default)s.')
     params.add_argument('--source-factors-use-source-vocab',
                         required=False,
                         nargs='+',
                         type=bool_str(),
                         default=[],
                         help='List of bools signaling wether to use the source vocabulary for the source factors. '
+                        'If empty (default) each factor has its own vocabulary.')
+    # UPDATE: adding arugument for target factor vocab decision
+    params.add_argument('--target-factors-use-source-vocab',
+                        required=False,
+                        nargs='+',
+                        type=bool_str(),
+                        default=[],
+                        help='List of bools signaling wether to use the target vocabulary for the target factors. '
                         'If empty (default) each factor has its own vocabulary.')
     params.add_argument(C.TRAINING_ARG_TARGET, '-t',
                         required=required,
@@ -561,6 +576,14 @@ def add_vocab_args(params):
                         type=regular_file(),
                         default=[],
                         help='Existing source factor vocabulary (-ies) (JSON).')
+    # UPDATE: adding --target-factor-vocabs argument:
+    params.add_argument('--target-factor-vocabs',
+                        required=False,
+                        nargs='+',
+                        type=regular_file(),
+                        default=[],
+                        help='Existing target factor vocabulary (-ies) (JSON).')
+
     params.add_argument(C.VOCAB_ARG_SHARED_VOCAB,
                         action='store_true',
                         default=False,
